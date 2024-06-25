@@ -3,7 +3,7 @@ import requests
 import os
 
 class Command(BaseCommand):
-    help = 'Add fetures by  downloads files from a private repository and processes them'
+    help = 'Add fetures by  downloads files from a github repository and processes them'
 
     def handle(self, *args, **kwargs):
         # Fetch the config file from the private repository
@@ -24,11 +24,11 @@ class Command(BaseCommand):
     def fetch_config(self):
         try:
             # URL to the config file in the private repository
-            config_url = 'https://github.com/Aakashmid/DjangoRedis/blob/main/config.json'
+            config_url = 'https://raw.githubusercontent.com/Aakashmid/DjangoRedis/main/config.json'
 
-            # Authentication details if required
-            auth = ('username', 'password')
-            response = requests.get(config_url, auth=auth)
+
+        
+            response = requests.get(config_url)
 
             if response.status_code == 200:
                 return response.json()
@@ -52,8 +52,7 @@ class Command(BaseCommand):
 
     def download_file(self, url, destination):
         try:
-            auth = ('username', 'password')
-            response = requests.get(url, auth=auth)
+            response = requests.get(url)
 
             if response.status_code == 200:
                 with open(destination, 'wb') as f:
@@ -66,4 +65,5 @@ class Command(BaseCommand):
 
     def print_instructions(self, config):
         instructions = config.get('instructions', 'No specific instructions provided.')
-        self.stdout.write(instructions)
+        print(f'Instructions :  {instructions} ')
+        input("Please review the instructions above and press Enter to continue...")
