@@ -67,3 +67,5 @@ class Command(BaseCommand):
         instructions = config.get('instructions', 'No specific instructions provided.')
         print(f'Instructions :  {instructions} ')
         input("Please review the instructions above and press Enter to continue...")
+        # have to  do validation that middleware is added in settings or not
+        

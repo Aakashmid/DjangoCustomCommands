@@ -1,36 +1,39 @@
-# using mongodb and async to store required request respone 
+# middleware.py
 
-import asyncio
-from django.http import HttpResponse
-from django.utils.deprecation import MiddlewareMixin
-from motor.motor_asyncio import AsyncIOMotorClient
+import pymongo
+from django.conf import settings
+import json
+from concurrent.futures import ThreadPoolExecutor
 
-
-class CustomMiddleware(MiddlewareMixin):
-    def _init_(self, get_response):
+class CustomMiddleware:
+    def __init__(self, get_response):
         self.get_response = get_response
-        # Initialize MongoDB client here
-        self.client = AsyncIOMotorClient('mongodb://localhost:27017')
+        self.client = pymongo.MongoClient('mongodb://localhost:27017')
         self.db = self.client['demoDb']
         self.collection = self.db['responses']
+        self.executor = ThreadPoolExecutor(max_workers=5)  # for async operation
 
-    async def _call_(self, request):
-        # Perform your asynchronous operation here
-        await self.store_request(request)
-        
-        response = await self.get_response(request)
-        return response
+    def log_request_response(self, log_data):
+        self.collection.insert_one(log_data)
 
-    async def store_request(self, request):
-        # Example of storing request data asynchronously
-        # Adjust according to your needs
-        data = {
-            "method": request.method,
-            "path": request.path,
-            "body": await request.body_async(),
-            "headers": dict(request.META),
+    def __call__(self, request):
+        request_log_data = {
+            'method': request.method,
+            'path': request.path,
+            'GET': request.GET.dict(),
+            'POST': request.POST.dict(),
+            # 'body': request.body.decode('utf-8') if request.body else None,
+            'headers': dict(request.headers),
         }
-        result=await self.collection.insert_one(data)
-       
-
-       
+        
+        response = self.get_response(request)
+        
+        request_log_data.update({
+            'status_code': response.status_code,
+            'response_content': response.content.decode('utf-8') if response.content else None,
+            'response_headers': dict(response.items()),
+        })
+        
+        self.executor.submit(self.log_request_response, request_log_data)
+        
+        return response
