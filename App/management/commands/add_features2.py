@@ -1,6 +1,6 @@
 from django.core.management.base import BaseCommand
 import requests
-import os
+import os,re
 from django.conf import settings
 from pymongo import MongoClient,errors
 
@@ -8,6 +8,11 @@ from pymongo import MongoClient,errors
 class Command(BaseCommand):
     help = 'Add fetures by  downloads files from a github repository and processes them'
 
+        # get path of settings.py 
+    for root, dirs, files in os.walk(settings.BASE_DIR):
+        if 'settings.py' in files:
+            settings_file_path = os.path.join(root, 'settings.py')
+            break
     def handle(self, *args, **kwargs):
         # Fetch the config file from the private repository
         self.stdout.write("Fetching the main config file...")
@@ -59,10 +64,12 @@ class Command(BaseCommand):
             # Download the file
             self.download_file(file_url, destination)
 
+
+
             self.print_instructions(file_info)
 
-            # if file_info.get('needs_mongo',False):
-            #     self.get_mongo_details()
+            if file_info.get('needs_mongo',False):
+                self.get_mongo_details()
             
         self.stdout.write(self.style.SUCCESS('SETUP COMPLETED'))
 
@@ -80,66 +87,93 @@ class Command(BaseCommand):
             self.stdout.write(self.style.ERROR(f"An error occurred: {e}"))
 
     # for getting mongodb details
-    # def get_mongo_details(self):
-    #     verify_details=False
-    #     while(not verify_details):
-    #         mongodb_url=input("Enter  url of your MonggoDb : ")
-    #         db_name=input('Enter name of your MongoDb databaes : ')
-    #         collection_name=input("Enter name of collection object of your MongoDb :")
-    #         try: 
-    #             client=MongoClient(mongodb_url)
-    #             client.server_info()  #call to check server is accessible
-    #             databases=client.list_database_names()
+    def get_mongo_details(self):
+        verify_details=False
+        while(not verify_details):
+            mongodb_url=input("Enter  url of your MonggoDb : ")
+            db_name=input('Enter name of your MongoDb databaes : ')
+            collection_name=input("Enter name of collection object of your MongoDb :")
+            try: 
+                client=MongoClient(mongodb_url)
+                client.server_info()  #call to check server is accessible
+                databases=client.list_database_names()
 
-    #             if db_name in databases: # check db exist or not 
-    #                 collections =  client[db_name].list_collection_names()
-    #                 if collection_name not in collections: # verify collection object 
-    #                     self.stdout.write(self.style.ERROR(f"Collection '{collection_name}' not found in database '{db_name}'."))
-    #                     verify_details=False
-    #                 else:
-    #                     verify_details=True
+                if db_name in databases: # check db exist or not 
+                    collections =  client[db_name].list_collection_names()
+                    if collection_name not in collections: # verify collection object 
+                        self.stdout.write(self.style.ERROR(f"Collection '{collection_name}' not found in database '{db_name}'."))
+                        verify_details=False
+                    else:
+                        verify_details=True
                         
-    #             else:
-    #                 self.stdout.write(self.style.ERROR(f"Database '{db_name}' not found on the server."))
-    #                 verify_details=False
+                else:
+                    self.stdout.write(self.style.ERROR(f"Database '{db_name}' not found on the server."))
+                    verify_details=False
 
-    #         except errors.ConnectionError:
-    #             self.stdout.write(self.style.ERROR("Could not connect to MongoDB server."))
-    #             verify_details=False
-    #         except errors.ServerSelectionTimeoutError:
-    #             self.stdout.write(self.style.ERROR("MongoDB server selection timed out."))
-    #             verify_details=False
+            except errors.OperationFailure:
+                self.stdout.write(self.style.ERROR("Could not connect to MongoDB server."))
+                verify_details=False
+            except errors.ServerSelectionTimeoutError:
+                self.stdout.write(self.style.ERROR("MongoDB server selection timed out."))
+                verify_details=False
         
-    #     settings_file = os.path.join(settings.BASE_DIR, 'settings.py')
-    #     with open(settings_file, 'r') as f:
-    #         lines = f.readlines()
+        with open(self.settings_file_path, 'r') as f:
+            lines = f.readlines()
         
-    #     mongo_settings = (
-    #             f"\n# MongoDB settings for LoggingMiddleware\n"
-    #             f"MONGODB_URL = '{mongodb_url}'\n"
-    #             f"MONGODB_NAME = '{db_name}'\n"
-    #             f"MONGODB_COLLECTION_NAME = '{collection_name}'\n"
-    #         )
-    #     lines.append(mongo_settings)
+        mongo_settings = (
+                f"\n# MongoDB settings for LoggingMiddleware\n"
+                f"MONGODB_URL = '{mongodb_url}'\n"
+                f"MONGODB_NAME = '{db_name}'\n"
+                f"MONGODB_COLLECTION_NAME = '{collection_name}'\n"
+            )
+        lines.append(mongo_settings)
 
-    #     with open(settings_file, 'w') as f:
-    #         f.writelines(lines)
+        with open(self.settings_file_path, 'w') as f:
+            f.writelines(lines)
         
-    #     self.stdout.write(self.style.SUCCESS("MongoDb connection is successfull and MongoDb details are added in  settings.py"))
+        self.stdout.write(self.style.SUCCESS("MongoDb connection is successfull and MongoDb details are added in  settings.py"))
 
     def print_instructions(self,file_info):
+        # from importlib import reload,import_module
         print(file_info['instructions'])
-        input('Follow above instrucion and then press enter...')
-        if file_info.get('middleware_class',None):
-            middleware_added=False
-            while(not middleware_added):
-                if file_info['middleware_class'] not  in  settings.MIDDLEWARE:
-                    self.stdout.write(self.style.ERROR("Before continue add given middleware in settings.MIDDLEWARE !!"))
-                    input('press enter to continue...')
-                    middleware_added=False
-                else:
-                    middleware_added=True
-            
+        input('To use new feature Follow above instrucion and then press enter...')
+
+        #  write logic for validating that middleware is added or not 
+        # if file_info.get('middleware_class',None):
+        #     middleware_added=False
+        #     while(not middleware_added):
+        #         try:
+        #             middleware_to_check=file_info['middleware_class']
+        #             print(middleware_to_check)
+        #             with open(self.settings_file_path, 'r') as f:
+        #                 settings_content = f.read()
+                        
+        #                 # Find the start of the MIDDLEWARE setting
+        #                 pattern = r"(?<=MIDDLEWARE\s*=\s*\[)[^\]]*(?=\])"
+        #                 matches=re.search(pattern,settings_content)
+        #                 if matches:
+        #                     # Extract the list of middleware classes
+        #                     middleware_list_str = matches.group(0)
+        #                     middleware_list = re.findall(r"'(.*?)'",middleware_list_str)
+        #                     middleware_list = [class_name.strip() for class_name in middleware_list]
+        #                     # Check if the middleware is in the list
+        #                     print(middleware_list)
+        #                     if middleware_to_check in middleware_list:
+        #                         self.stdout.write(self.style.SUCCESS(f"'{middleware_to_check}' is already added in MIDDLEWARE."))
+        #                         middleware_added=True
+
+        #                     else:
+        #                         self.stdout.write(self.style.WARNING(f"'{middleware_to_check}' is not added in MIDDLEWARE yet."))
+        #                         self.stdout.write(self.style.ERROR('middleware is not added in settings.MIDDLEWARE ,  add middleware to continue !'))
+        #                         input('Enter if you added middleware ...')
+                      
+
+                                
+
+        #         except FileNotFoundError:
+        #             self.stdout.write(self.style.ERROR("settings.py file not found."))
+                
+                
 
 
 

@@ -38,8 +38,6 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'features.custom_middleware.LoggingMiddleware.CustomMiddleware',
-    'features.custom_middleware.CacheUpdateMiddleware.CustomMiddleware'
 ]
 
 ROOT_URLCONF = 'core.urls'
@@ -114,3 +112,9 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+# MongoDB settings for LoggingMiddleware
+MONGODB_URL = 'mongodb://localhost:27017'
+MONGODB_NAME = 'demoDb'
+MONGODB_COLLECTION_NAME = 'responses'
